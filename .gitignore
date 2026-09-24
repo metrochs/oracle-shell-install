@@ -1,0 +1,10 @@
+# 工作区配置，勿提交
+.workbuddy/
+
+# 依赖与构建产物
+node_modules/
+dist/
+
+# 密钥与运行时数据（各子项目的敏感内容）
+.env
+data/

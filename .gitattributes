@@ -1,0 +1,9 @@
+# Shell 脚本必须在 Linux 上可执行，强制 LF
+*.sh text eol=lf
+*.py text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.vue text eol=lf
+*.md text eol=lf
+*.example text eol=lf

@@ -1,0 +1,19 @@
+{
+  "name": "oracle-install-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "OracleShellInstall 配置中心后端：配置管理 + SSH 远程执行 + 实时日志",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "keygen": "node scripts/genkey.js",
+    "test": "node test/e2e.mjs"
+  },
+  "dependencies": {
+    "@fastify/static": "^7.0.4",
+    "@fastify/websocket": "^8.3.1",
+    "fastify": "^4.28.1",
+    "ssh2": "^1.15.0"
+  }
+}
