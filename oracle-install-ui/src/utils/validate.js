@@ -2,7 +2,7 @@ import matrixData from '../data/matrix.json'
 
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
 
-function isIp(v) {
+export function isIp(v) {
   const m = IPV4.exec(v)
   if (!m) return false
   return m.slice(1).every((n) => Number(n) >= 0 && Number(n) <= 255)
@@ -121,11 +121,43 @@ export function crossChecks(form) {
     }
     const pub = (form.rac_public_ip || '').split(',').map((s) => s.trim()).filter(Boolean)
     const hn = (form.rac_hostname || '').split(',').map((s) => s.trim()).filter(Boolean)
+    const vip = (form.rac_virtual_ip || '').split(',').map((s) => s.trim()).filter(Boolean)
+    if (!pub.length && !hn.length && !vip.length) {
+      out.push({ level: 'error', msg: 'RAC 模式至少需要配置 1 个节点' })
+    }
     if (pub.length && hn.length && pub.length !== hn.length) {
       out.push({
         level: 'error',
         msg: `节点公网 IP 数量 (${pub.length}) 与主机名数量 (${hn.length}) 不一致`
       })
+    }
+    if (pub.length && vip.length && pub.length !== vip.length) {
+      out.push({
+        level: 'error',
+        msg: `节点公网 IP 数量 (${pub.length}) 与虚拟 IP 数量 (${vip.length}) 不一致`
+      })
+    }
+    const dup = (arr, label) => {
+      const d = arr.filter((s, i) => arr.indexOf(s) !== i)
+      if (d.length) out.push({ level: 'error', msg: `${label}重复：${[...new Set(d)].join('、')}` })
+    }
+    dup(pub, '公网 IP ')
+    dup(vip, '虚拟 IP ')
+    dup(hn, '主机名 ')
+    const overlap = pub.filter((s) => vip.includes(s))
+    if (overlap.length) {
+      out.push({ level: 'error', msg: `公网 IP 与虚拟 IP 不能相同：${overlap.join('、')}` })
+    }
+    const badHn = hn.filter((h) => !/^[a-zA-Z0-9][a-zA-Z0-9-]*$/.test(h))
+    if (badHn.length) {
+      out.push({
+        level: 'error',
+        msg: `主机名只能包含字母、数字、中划线且不以中划线开头：${badHn.join('、')}`
+      })
+    }
+    const badIp = [...pub, ...vip].filter((s) => !isIp(s))
+    if (badIp.length) {
+      out.push({ level: 'error', msg: `节点 IP 格式不正确：${badIp.join('、')}` })
     }
     const priv = (form.rac_priv_ifname || '').split(',').map((s) => s.trim()).filter(Boolean)
     if (priv.length > 2) out.push({ level: 'warn', msg: '心跳网卡不建议超过 2 组' })

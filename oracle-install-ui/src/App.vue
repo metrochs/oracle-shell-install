@@ -3,14 +3,18 @@ import { reactive, ref, computed, watch } from 'vue'
 import schema from './data/schema.json'
 import matrixData from './data/matrix.json'
 import FieldControl from './components/FieldControl.vue'
+import NodeTable from './components/NodeTable.vue'
 import DeployPanel from './components/DeployPanel.vue'
 import { validateField, matrixIssues, crossChecks } from './utils/validate.js'
 import { buildConf, buildCommand, downloadFile, parseConf, loadTemplates, saveTemplate, deleteTemplate } from './utils/conf.js'
 
 const { groups, params } = schema
 
+// synthetic 参数（如 RAC 节点表格）只是 UI 编辑器，不进表单数据模型
 const form = reactive(
-  Object.fromEntries(params.map((p) => [p.key, p.default != null ? String(p.default) : '']))
+  Object.fromEntries(
+    params.filter((p) => !p.synthetic).map((p) => [p.key, p.default != null ? String(p.default) : ''])
+  )
 )
 
 const env = reactive({ os: 'rhel', osVersion: '8', arch: 'x86_64' })
@@ -35,7 +39,10 @@ function isRequired(p) {
   return !!p.required || matchWhen(p.requiredWhen)
 }
 
-const visibleParams = computed(() => params.filter((p) => isVisible(p)))
+// hidden 字段（如 RAC 节点三个键，由节点表格代为编辑）不单独渲染
+const visibleParams = computed(() =>
+  params.filter((p) => !p.hidden && !p.synthetic ? isVisible(p) : false)
+)
 const visibleKeys = computed(() => new Set(visibleParams.value.map((p) => p.key)))
 
 const fieldIssues = computed(() => {
@@ -69,8 +76,15 @@ const warnCount = computed(
         cross.value.filter((i) => i.level === 'warn').length
 )
 
-const confText = computed(() => buildConf(form, visibleKeys.value))
-const cmdText = computed(() => buildCommand(form, visibleKeys.value))
+const confText = computed(() => buildConf(form, exportKeys.value))
+const cmdText = computed(() => buildCommand(form, exportKeys.value))
+
+// 导出键 = 可见字段 + hidden 字段（RAC 节点三个键由表格代编辑，仍需写入 conf）
+const exportKeys = computed(() => {
+  const s = new Set(visibleKeys.value)
+  for (const p of params) if (p.hidden) s.add(p.key)
+  return s
+})
 
 const currentGroup = computed(() => groups.find((g) => g.id === activeGroup.value))
 const currentParams = computed(() =>
@@ -119,7 +133,10 @@ function onDelete(t) {
 }
 function onReset() {
   if (!confirm('确定要恢复全部参数为默认值吗？')) return
-  for (const p of params) form[p.key] = p.default != null ? String(p.default) : ''
+  for (const p of params) {
+    if (p.synthetic) continue
+    form[p.key] = p.default != null ? String(p.default) : ''
+  }
 }
 function onDownload() {
   downloadFile('install.conf', confText.value)
@@ -234,6 +251,11 @@ async function copyText(text) {
         </div>
 
         <p v-if="!currentParams.length" class="empty">当前模式下该分组没有需要填写的参数。</p>
+
+        <NodeTable
+          v-if="activeGroup === 'rac' && form.oracle_install_mode === 'rac'"
+          :form="form"
+        />
 
         <FieldControl
           v-for="p in currentParams"

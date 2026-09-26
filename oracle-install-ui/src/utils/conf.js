@@ -11,6 +11,7 @@ export function buildConf(form, visibleKeys) {
     ''
   ]
   for (const p of schema.params) {
+    if (p.synthetic) continue // node-table 等纯 UI 参数，不写入 conf
     if (!visibleKeys.has(p.key)) continue
     const v = (form[p.key] ?? '').toString().trim()
     if (!v) continue
@@ -41,7 +42,7 @@ export function buildCommand(form, visibleKeys) {
 export function parseConf(text) {
   const values = {}
   const unknown = []
-  const keys = new Set(schema.params.map((p) => p.key))
+  const keys = new Set(schema.params.filter((p) => !p.synthetic).map((p) => p.key))
   for (const raw of String(text || '').split(/\r?\n/)) {
     const line = raw.trim()
     if (!line || line.startsWith('#')) continue
